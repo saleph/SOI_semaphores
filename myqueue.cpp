@@ -1,14 +1,19 @@
 #include "myqueue.h"
 
 MyQueue::MyQueue()
-    : size(0), semCompleteRead(0), semAandC(1), semB(0), semFull(QUEUE_MAX_SIZE), semEmpty(0), mutex(1) {
+    : size(0), semCompleteRead(0), semAandC(1), semB(0),
+      semFull(MYQUEUE_MAX_SIZE), semEmpty(0), mutex(1), printfMutex(1) {
 }
 
 MyQueue::~MyQueue() {
 }
 
 Data MyQueue::readAsA() {
-    return readAsAorC();
+    Data d = readAsAorC();
+    printfMutex.p();
+    printf("Reader A read: %d", d.val);
+    printfMutex.v();
+    return d;
 }
 
 Data MyQueue::readAsAorC() {
@@ -23,6 +28,7 @@ Data MyQueue::readAsAorC() {
     mutex.v();
 
     semCompleteRead.p(); // wait for read in B
+    semAandC.v();
 
     return data;
 }
@@ -39,11 +45,19 @@ Data MyQueue::readAsB() {
     semCompleteRead.v(); // wakeup A/C waiting for B
     mutex.v();
 
+    printfMutex.p();
+    printf("Reader B read: %d\n", data.val);
+    printfMutex.v();
+
     return data;
 }
 
 Data MyQueue::readAsC() {
-    return readAsAorC();
+    Data d = readAsAorC();
+    printfMutex.p();
+    printf("Reader C read: %d\n", d.val);
+    printfMutex.v();
+    return d;
 }
 
 void MyQueue::write(const Data &data) {
@@ -51,11 +65,16 @@ void MyQueue::write(const Data &data) {
     mutex.p();
 
     push(data);
-    if (size > QUEUE_MIN_SIZE) {
+    if (size > MYQUEUE_MIN_SIZE) {
         semEmpty.v();
     }
 
     mutex.v();
+
+
+    printfMutex.p();
+    printf("Writer: %d\n", data.val);
+    printfMutex.v();
 }
 
 Data MyQueue::takeFirst() {

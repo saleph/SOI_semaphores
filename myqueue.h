@@ -1,19 +1,12 @@
 #ifndef MYQUEUE_H
 #define MYQUEUE_H
 
+#include <stdio.h>
 #include "sem.h"
 
-#define QUEUE_MAX_SIZE 13
-#define QUEUE_MIN_SIZE 3
-#define QUEUE_SIZE     0
-
-#define NO_OF_SEM   6
-#define SEM_A       0
-#define SEM_B       1
-#define SEM_C       2
-#define SEM_FULL    3
-#define SEM_EMPTY   4
-#define MUTEX       5
+#define MYQUEUE_MAX_SIZE 13
+#define MYQUEUE_MIN_SIZE 3
+#define MYQUEUE_SIZE     0
 
 typedef struct Data {
     int val;
@@ -21,9 +14,9 @@ typedef struct Data {
 
 class MyQueue
 {
-    struct Data queue[QUEUE_MAX_SIZE];
+    struct Data queue[MYQUEUE_MAX_SIZE];
     int size;
-    Sem semCompleteRead, semAandC, semB, semFull, semEmpty, mutex;
+    Sem semCompleteRead, semAandC, semB, semFull, semEmpty, mutex, printfMutex;
 public:
     MyQueue();
     ~MyQueue();
