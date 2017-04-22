@@ -10,7 +10,6 @@
 #include <fcntl.h> /* For O_* constants */
 #include <stdlib.h>
 #include <cstring>
-#include <curses.h>
 #include "myqueue.h"
 
 #define CYCLES 25
@@ -65,15 +64,7 @@ int main ()
 
     pid_t pid;
     pid_t child[4];
-    int segment_id;
     void* shared_memory;
-    const int shared_segment_size = sizeof(MyQueue);
-
-    /* Allocate a shared memory segment.  */
-    //segment_id = shmget (IPC_PRIVATE, shared_segment_size, IPC_CREAT| IPC_EXCL | S_IRUSR | S_IWUSR);
-
-    /* Attach the shared memory segment.  */
-    //shared_memory = (char*) shmat (segment_id, 0, 0);
 
     /* Write a string to the shared memory segment.  */
     shared_memory = getSHM();
@@ -129,11 +120,5 @@ int main ()
     ((MyQueue*)shared_memory)->~MyQueue();
 
     shm_unlink(SHM_NAME);
-
-    /* Detach the shared memory segment.  */
-    //shmdt (shared_memory);
-
-    /* Deallocate the shared memory segment.  */
-    //shmctl (segment_id, IPC_RMID, 0);
     return 0;
 }
