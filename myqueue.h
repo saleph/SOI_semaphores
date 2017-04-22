@@ -8,6 +8,7 @@
 #define MYQUEUE_MIN_SIZE 3
 #define MYQUEUE_SIZE     0
 
+
 typedef struct Data {
     int val;
 } Data;
@@ -17,6 +18,11 @@ class MyQueue
     struct Data queue[MYQUEUE_MAX_SIZE];
     int size;
     Sem semCompleteRead, semAandC, semB, semFull, semEmpty, mutex, printfMutex;
+    enum {
+        NO_READER,
+        READER_A,
+        READER_C
+    } lastReader = NO_READER;
 public:
     MyQueue();
     ~MyQueue();
@@ -27,10 +33,10 @@ public:
     void write(const Data &data);
 
 private:
-    Data readAsAorC();
     Data takeFirst();
     Data pop();
     void push(const Data &data);
+    void printSems();
 };
 
 #endif // MYQUEUE_H

@@ -10,6 +10,7 @@
 #include <fcntl.h> /* For O_* constants */
 #include <stdlib.h>
 #include <cstring>
+#include <curses.h>
 #include "myqueue.h"
 
 #define CYCLES 25
@@ -65,22 +66,22 @@ int main ()
     pid_t pid;
     pid_t child[4];
     int segment_id;
-    char* shared_memory;
+    void* shared_memory;
     const int shared_segment_size = sizeof(MyQueue);
 
     /* Allocate a shared memory segment.  */
-    segment_id = shmget (IPC_PRIVATE, shared_segment_size, IPC_CREAT| IPC_EXCL | S_IRUSR | S_IWUSR);
+    //segment_id = shmget (IPC_PRIVATE, shared_segment_size, IPC_CREAT| IPC_EXCL | S_IRUSR | S_IWUSR);
 
     /* Attach the shared memory segment.  */
-    shared_memory = (char*) shmat (segment_id, 0, 0);
+    //shared_memory = (char*) shmat (segment_id, 0, 0);
 
     /* Write a string to the shared memory segment.  */
+    shared_memory = getSHM();
     memcpy(shared_memory, (char*)(new MyQueue), sizeof(MyQueue));
 
     // spawning processes
     if((pid = fork()) == 0) {
-        shared_memory = (char*) shmat (segment_id, 0, 0);
-        MyQueue *q = (MyQueue*)shared_memory;
+        MyQueue *q = (MyQueue*)getSHM();
         performReaderA(*q);
         shmdt (shared_memory);
         return 0;
@@ -89,8 +90,7 @@ int main ()
 
 
     if((pid = fork()) == 0) {
-        shared_memory = (char*) shmat (segment_id, 0, 0);
-        MyQueue *q = (MyQueue*)shared_memory;
+        MyQueue *q = (MyQueue*)getSHM();
         performReaderB(*q);
         shmdt (shared_memory);
         return 0;
@@ -99,8 +99,7 @@ int main ()
 
 
     if((pid = fork()) == 0) {
-        shared_memory = (char*) shmat (segment_id, 0, 0);
-        MyQueue *q = (MyQueue*)shared_memory;
+        MyQueue *q = (MyQueue*)getSHM();
         performReaderC(*q);
         shmdt (shared_memory);
         return 0;
@@ -109,8 +108,7 @@ int main ()
 
 
     if((pid = fork()) == 0) {
-        shared_memory = (char*) shmat (segment_id, 0, 0);
-        MyQueue *q = (MyQueue*)shared_memory;
+        MyQueue *q = (MyQueue*)getSHM();
         performWriter(*q);
         shmdt (shared_memory);
         return 0;
@@ -119,7 +117,7 @@ int main ()
 
 
     // end of program
-    //while (getchar() != 'q');
+    while (getchar() != 'q');
 
     kill(child[0], SIGKILL);
     kill(child[1], SIGKILL);
@@ -128,12 +126,14 @@ int main ()
 
 
     // delete queue
-    delete (MyQueue*)shared_memory;
+    ((MyQueue*)shared_memory)->~MyQueue();
+
+    shm_unlink(SHM_NAME);
 
     /* Detach the shared memory segment.  */
-    shmdt (shared_memory);
+    //shmdt (shared_memory);
 
     /* Deallocate the shared memory segment.  */
-    shmctl (segment_id, IPC_RMID, 0);
+    //shmctl (segment_id, IPC_RMID, 0);
     return 0;
 }

@@ -15,7 +15,6 @@
 
 class Sem
 {
-    static int semNo;
     sem_t s;
 public:
     Sem(int val);

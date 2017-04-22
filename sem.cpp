@@ -1,6 +1,5 @@
 #include "sem.h"
 
-int Sem::semNo = 0;
 
 Sem::Sem(int val) {
     sem_init(&s, 1, val);
