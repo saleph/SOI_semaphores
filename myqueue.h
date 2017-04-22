@@ -18,11 +18,6 @@ class MyQueue
     struct Data queue[MYQUEUE_MAX_SIZE];
     int size;
     Sem semCompleteRead, semAandC, semB, semFull, semEmpty, mutex, printfMutex;
-    enum {
-        NO_READER,
-        READER_A,
-        READER_C
-    } lastReader = NO_READER;
 public:
     MyQueue();
     ~MyQueue();
@@ -36,7 +31,6 @@ private:
     Data takeFirst();
     Data pop();
     void push(const Data &data);
-    void printSems();
 };
 
 #endif // MYQUEUE_H

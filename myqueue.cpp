@@ -16,23 +16,22 @@ Data MyQueue::readAsA() {
     mutex.p();
 
     data = takeFirst();
-    lastReader = READER_A;
 
     semB.v();     // wakeup B
     mutex.v();
 
     semCompleteRead.p(); // wait for read in B
+
     printfMutex.p();
     printf("A: %d\n", data.val);
     printfMutex.v();
+
     semAandC.v();
 
     return data;
 }
 
 Data MyQueue::readAsB() {
-    printSems();
-
     Data data;
     semB.p();   // semB is slave - it always wait for A/C, which perform read first
                 // no semEmpty required - it was checked by A/C
@@ -59,15 +58,16 @@ Data MyQueue::readAsC() {
     mutex.p();
 
     data = takeFirst();
-    lastReader = READER_C;
 
     semB.v();     // wakeup B
     mutex.v();
 
     semCompleteRead.p(); // wait for read in B
+
     printfMutex.p();
     printf("C: %d\n", data.val);
     printfMutex.v();
+
     semAandC.v();
 
     return data;
@@ -81,6 +81,7 @@ void MyQueue::write(const Data &data) {
     if (size > MYQUEUE_MIN_SIZE) {
         semEmpty.v();
     }
+
     printfMutex.p();
     printf("  Writer: %d\n", data.val);
     printfMutex.v();
@@ -105,10 +106,3 @@ void MyQueue::push(const Data &data) {
     queue[size++] = data;
 }
 
-void MyQueue::printSems() {
-//    printfMutex.p();
-//    printf("\tsemA: %d\n", semA.getVal());
-//    printf("\tsemB: %d\n", semB.getVal());
-//    printf("\tsemC: %d\n", semC.getVal());
-//    printfMutex.v();
-}
