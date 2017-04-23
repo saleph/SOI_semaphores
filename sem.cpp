@@ -16,9 +16,3 @@ void Sem::p() {
 void Sem::v() {
     sem_post(&s);
 }
-
-int Sem::getVal() {
-    int val;
-    sem_getvalue(&s, &val);
-    return val;
-}
