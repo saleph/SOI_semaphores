@@ -1,12 +1,7 @@
 #include "myqueue.h"
 
 MyQueue::MyQueue()
-    : size(0), semBhaveRead(0), semAandC(1),
-      semAChaveRead(0),
-      semFull(MYQUEUE_MAX_SIZE), semEmpty(0), mutex(1),
-      printfMutex(1),
-      aReads(0), bReads(0), cReads(0), semReadStats(1),
-      semBExclusion(1), semACExclusion(1), semWaitingForEmpty(1), semReadyToPop(0)
+    : size(0), printfMutex(1), condReadStats(1)
 {
 }
 
@@ -20,85 +15,80 @@ Data MyQueue::readAsA() {
     printf(" A: %d\n", data.val);
     printfMutex.v();
 #endif
-    semReadStats.p();
+    condReadStats.p();
     ++aReads;
-    semReadStats.v();
-
-
+    condReadStats.v();
 
     return data;
 }
 
 Data MyQueue::readAsAorC() {
+    enter();
     Data data;
     // give exclusive for {A, C}
     // no of A/C is being favorized (kernel's scheduler provides ordering)
 
-    semACExclusion.p();
-    mutex.p();
-    if (semBhaveRead.getValue() == 0) {
+    condACExclusion.p();
+    if (condBhaveRead.getValue() == 0) {
         // B have NOT read
-        semAChaveRead.v();
+        condAChaveRead.v();
         mutex.v();
-        semEmpty.p();
+        condEmpty.p();
         mutex.p();
 
         printf("\t ACread\n");
         data = takeFirst();
 
-        semReadyToPop.v();
-
-        mutex.v();
-
-        //semBhaveRead.p(); // wait for read in B
+        condReadyToPop.v();
     } else {
         // B have read
-        semBhaveRead.p(); // consumption
+        condBhaveRead.p(); // consumption
         mutex.v();
-        semReadyToPop.p();
+        condReadyToPop.p();
         mutex.p();
 
         printf("\t ACpoped\n");
         data = pop();
 
-        semACExclusion.v();
-        semBExclusion.v();
-        semFull.v();
-        mutex.v();
+        condACExclusion.v();
+        condBExclusion.v();
+        condFull.signal();
     }
+
+    leave();
     return data;
 }
 
 Data MyQueue::readAsB() {
     Data data;
-    semBExclusion.p();
+    condBExclusion.p();
     mutex.p();
-    if (semAChaveRead.getValue() == 0) {
+    if (condAChaveRead.getValue() == 0) {
         // B is first reader
-        semBhaveRead.v();
+        condBhaveRead.v();
         mutex.v();
-        semEmpty.p();
+        condEmpty.p();
         mutex.p();
 
         data = takeFirst();
         printf("\t Bread\n");
-        semReadyToPop.v();
+        condReadyToPop.v();
         mutex.v();
     } else {
         // A or C have read
-        semAChaveRead.p(); // consumption
+        condAChaveRead.p(); // consumption
         mutex.v();
-        semReadyToPop.p();
+        condReadyToPop.p();
         mutex.p();
 
         printf("\t Bpoped\n");
         data = pop();
 
-        semBExclusion.v();
-        semACExclusion.v();
-        semFull.v();
+        condBExclusion.v();
+        condACExclusion.v();
+        condFull.v();
         mutex.v();
-        //semWaitingForEmpty.v();
+        //condWaitingForEmpty.v();
     }
 
 
@@ -107,9 +97,9 @@ Data MyQueue::readAsB() {
     printf("B: %d\n", data.val);
     printfMutex.v();
 #endif
-    semReadStats.p();
+    condReadStats.p();
     ++bReads;
-    semReadStats.v();
+    condReadStats.v();
 
     return data;
 }
@@ -121,20 +111,20 @@ Data MyQueue::readAsC() {
     printf(" C: %d\n", data.val);
     printfMutex.v();
 #endif
-    semReadStats.p();
+    condReadStats.p();
     ++cReads;
-    semReadStats.v();
+    condReadStats.v();
 
     return data;
 }
 
 void MyQueue::write(const Data &data) {
-    semFull.p();
+    condFull.p();
     mutex.p();
 
     push(data);
     if (size > MYQUEUE_MIN_SIZE) {
-        semEmpty.v();
+        condEmpty.v();
     }
 
     mutex.v();
@@ -164,8 +154,8 @@ void MyQueue::push(const Data &data) {
 
 void MyQueue::printReadStats() {
     printfMutex.p();
-    semReadStats.p();
+    condReadStats.p();
     printf("  A: %d, B: %d, C: %d\n", aReads, bReads, cReads);
-    semReadStats.v();
+    condReadStats.v();
     printfMutex.v();
 }

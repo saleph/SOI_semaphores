@@ -3,7 +3,8 @@
 
 #include <stdio.h>
 #include <unistd.h>
-#include "sem.h"
+#include "monitor.h"
+#include "conditionvariable.h"
 
 #define MYQUEUE_MAX_SIZE 4
 #define MYQUEUE_MIN_SIZE 3
@@ -16,13 +17,13 @@ typedef struct Data {
     int val;
 } Data;
 
-class MyQueue
+class MyQueue : Monitor
 {
     struct Data queue[MYQUEUE_MAX_SIZE];
     int size;
-    Sem semBhaveRead, semAandC, semAChaveRead, semFull, semEmpty, mutex, printfMutex, semBExclusion, semACExclusion, semWaitingForEmpty, semReadyToPop;
+    ConditionVariable condBhaveRead, condAChaveRead, condFull, condEmpty, mutex, condBExclusion, condACExclusion, condWaitingForEmpty, condReadyToPop;
+    Sem printfMutex, condReadStats;
     int aReads, bReads, cReads;
-    Sem semReadStats;
 public:
     MyQueue();
     ~MyQueue();

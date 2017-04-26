@@ -16,16 +16,17 @@
 #define CYCLES 25
 #define LOG_PERIOD 2000
 
-void performReaderA(MyQueue &queue) {
+MyQueue queue;
+
+void *performReaderA(void*) {
     int i = CYCLES;
     while(--i) {
         queue.readAsA();
-
         usleep(rand() % 300);
     }
 }
 
-void performReaderB(MyQueue &queue) {
+void *performReaderB(void*) {
     int i = CYCLES;
     while(--i) {
         queue.readAsB();
@@ -33,7 +34,7 @@ void performReaderB(MyQueue &queue) {
     }
 }
 
-void performReaderC(MyQueue &queue) {
+void *performReaderC(void*) {
     int i = CYCLES;
     while(--i) {
         queue.readAsC();
@@ -41,77 +42,30 @@ void performReaderC(MyQueue &queue) {
     }
 }
 
-void performWriter(MyQueue &queue) {
+void *performWriter(void*) {
     Data d;
     int i = CYCLES;
     while(--i) {
         d.val = i;
         queue.write(d);
-        if (i % LOG_PERIOD == 0) {
-            //queue.printReadStats();
-        }
         usleep(rand() % 300);
     }
 }
 
 int main ()
 {
+    pthread_t readerA, readerB, readerC, writer;
     srand(time(NULL));
 
-    // should be constructed only in
-    SharedMemory shm(sizeof(MyQueue));
+    pthread_create(&readerA, NULL, performReaderA, NULL);
+    pthread_create(&readerB, NULL, performReaderB, NULL);
+    pthread_create(&readerC, NULL, performReaderC, NULL);
+    pthread_create(&writer, NULL, performWriter, NULL);
 
-    pid_t pid;
-    pid_t child[4];
-
-    /* Write a string to the shared memory segment.  */
-    memcpy(shm.getPtr(), (char*)(new MyQueue), sizeof(MyQueue));
-
-    // spawning processes
-    if((pid = fork()) == 0) {
-        MyQueue *q = (MyQueue*)shm.getPtr();
-        performReaderA(*q);
-        return 0;
-    }
-    child[0] = pid;
-
-
-    if((pid = fork()) == 0) {
-        MyQueue *q = (MyQueue*)shm.getPtr();
-        performReaderB(*q);
-        return 0;
-    }
-    child[1] = pid;
-
-
-    if((pid = fork()) == 0) {
-        MyQueue *q = (MyQueue*)shm.getPtr();
-        performReaderC(*q);
-        return 0;
-    }
-    child[2] = pid;
-
-
-    if((pid = fork()) == 0) {
-        MyQueue *q = (MyQueue*)shm.getPtr();
-        performWriter(*q);
-        return 0;
-    }
-    child[3] = pid;
-
-
-    // end of program
-    while (getchar() != 'q');
-    ((MyQueue*)shm.getPtr())->printReadStats();
-
-    kill(child[0], SIGKILL);
-    kill(child[1], SIGKILL);
-    kill(child[2], SIGKILL);
-    kill(child[3], SIGKILL);
-
-
-    // delete queue
-    ((MyQueue*)shm.getPtr())->~MyQueue();
+    pthread_join(readerA, NULL);
+    pthread_join(readerB, NULL);
+    pthread_join(readerC, NULL);
+    pthread_join(writer, NULL);
 
     return 0;
 }
