@@ -22,6 +22,7 @@ public:
 
     void p();
     void v();
+    int getValue();
 };
 
 #endif // SEM_H

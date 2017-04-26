@@ -1,11 +1,12 @@
 #include "myqueue.h"
 
 MyQueue::MyQueue()
-    : size(0), semCompleteRead(0), semAandC(1),
-      semB(0),
+    : size(0), semBhaveRead(0), semAandC(1),
+      semAChaveRead(0),
       semFull(MYQUEUE_MAX_SIZE), semEmpty(0), mutex(1),
       printfMutex(1),
-      aReads(0), bReads(0), cReads(0), semReadStats(1)
+      aReads(0), bReads(0), cReads(0), semReadStats(1),
+      semBExclusion(1), semACExclusion(1), semWaitingForEmpty(1), semReadyToPop(0)
 {
 }
 
@@ -23,6 +24,8 @@ Data MyQueue::readAsA() {
     ++aReads;
     semReadStats.v();
 
+
+
     return data;
 }
 
@@ -30,31 +33,75 @@ Data MyQueue::readAsAorC() {
     Data data;
     // give exclusive for {A, C}
     // no of A/C is being favorized (kernel's scheduler provides ordering)
-    semAandC.p();
-    semEmpty.p(); // anything to read
+
+    semACExclusion.p();
     mutex.p();
+    if (semBhaveRead.getValue() == 0) {
+        // B have NOT read
+        semAChaveRead.v();
+        mutex.v();
+        semEmpty.p();
+        mutex.p();
 
-    data = takeFirst();
+        printf("\t ACread\n");
+        data = takeFirst();
 
-    semB.v();     // wakeup B
-    mutex.v();
+        semReadyToPop.v();
 
-    semCompleteRead.p(); // wait for read in B
-    semAandC.v();
+        mutex.v();
 
+        //semBhaveRead.p(); // wait for read in B
+    } else {
+        // B have read
+        semBhaveRead.p(); // consumption
+        mutex.v();
+        semReadyToPop.p();
+        mutex.p();
+
+        printf("\t ACpoped\n");
+        data = pop();
+
+        semACExclusion.v();
+        semBExclusion.v();
+        semFull.v();
+        mutex.v();
+    }
     return data;
 }
 
 Data MyQueue::readAsB() {
     Data data;
-    semB.p();   // semB is slave - it always wait for A/C, which perform read first
-                // no semEmpty required - it was already checked by A/C
+    semBExclusion.p();
     mutex.p();
+    if (semAChaveRead.getValue() == 0) {
+        // B is first reader
+        semBhaveRead.v();
+        mutex.v();
+        semEmpty.p();
+        mutex.p();
 
-    data = pop();
-    semFull.v();
-    semCompleteRead.v(); // wakeup A/C waiting for B
-    mutex.v();
+        data = takeFirst();
+        printf("\t Bread\n");
+        semReadyToPop.v();
+        mutex.v();
+    } else {
+        // A or C have read
+        semAChaveRead.p(); // consumption
+        mutex.v();
+        semReadyToPop.p();
+        mutex.p();
+
+        printf("\t Bpoped\n");
+        data = pop();
+
+        semBExclusion.v();
+        semACExclusion.v();
+        semFull.v();
+        mutex.v();
+        //semWaitingForEmpty.v();
+    }
+
+
 #if LOG
     printfMutex.p();
     printf("B: %d\n", data.val);

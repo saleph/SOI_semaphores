@@ -9,7 +9,7 @@
 #define MYQUEUE_MIN_SIZE 3
 #define MYQUEUE_SIZE     0
 
-#define LOG 0
+#define LOG 1
 
 
 typedef struct Data {
@@ -20,7 +20,7 @@ class MyQueue
 {
     struct Data queue[MYQUEUE_MAX_SIZE];
     int size;
-    Sem semCompleteRead, semAandC, semB, semFull, semEmpty, mutex, printfMutex;
+    Sem semBhaveRead, semAandC, semAChaveRead, semFull, semEmpty, mutex, printfMutex, semBExclusion, semACExclusion, semWaitingForEmpty, semReadyToPop;
     int aReads, bReads, cReads;
     Sem semReadStats;
 public:

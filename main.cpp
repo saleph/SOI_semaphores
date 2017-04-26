@@ -13,13 +13,14 @@
 #include "myqueue.h"
 #include "sharedmemory.h"
 
-#define CYCLES 100000
+#define CYCLES 25
 #define LOG_PERIOD 2000
 
 void performReaderA(MyQueue &queue) {
     int i = CYCLES;
     while(--i) {
         queue.readAsA();
+
         usleep(rand() % 300);
     }
 }
@@ -47,7 +48,7 @@ void performWriter(MyQueue &queue) {
         d.val = i;
         queue.write(d);
         if (i % LOG_PERIOD == 0) {
-            queue.printReadStats();
+            //queue.printReadStats();
         }
         usleep(rand() % 300);
     }
