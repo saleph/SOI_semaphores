@@ -1,23 +1,22 @@
 #include "myqueue.h"
 
 MyQueue::MyQueue()
-    : size(0), printfMutex(1), condReadStats(1)
+    : size(0), printfMutex(1), condReadStats(1), lastReader(NoReader)
 {
 }
 
 MyQueue::~MyQueue() {
+    printReadStats();
 }
 
 Data MyQueue::readAsA() {
     Data data = readAsAorC();
+    enter();
 #if LOG
-    printfMutex.p();
     printf(" A: %d\n", data.val);
-    printfMutex.v();
 #endif
-    condReadStats.p();
     ++aReads;
-    condReadStats.v();
+    leave();
 
     return data;
 }
@@ -25,34 +24,46 @@ Data MyQueue::readAsA() {
 Data MyQueue::readAsAorC() {
     enter();
     Data data;
-    // give exclusive for {A, C}
-    // no of A/C is being favorized (kernel's scheduler provides ordering)
 
-    condACExclusion.p();
-    if (condBhaveRead.getValue() == 0) {
-        // B have NOT read
-        condAChaveRead.v();
-        mutex.v();
-        condEmpty.p();
-        mutex.p();
+    while (acIsConsuming) {
+        wait(condACExclusion);
+    }
+    acIsConsuming = true;
 
-        printf("\t ACread\n");
-        data = takeFirst();
+    if (bHaveRead) {
+        bHaveRead = false; // consumption via B
+        while (!readyToPop) {
+            wait(condReadyToPop);
+        }
+        readyToPop = false;
 
-        condReadyToPop.v();
-    } else {
-        // B have read
-        condBhaveRead.p(); // consumption
-        mutex.v();
-        condReadyToPop.p();
-        mutex.p();
+#if LOG
 
-        printf("\t ACpoped\n");
+#endif
+#if LOG
+        printf("==== AC poped\n");
+#endif
         data = pop();
 
-        condACExclusion.v();
-        condBExclusion.v();
-        condFull.signal();
+        acIsConsuming = false;
+        bIsConsuming = false;
+        signal(condACExclusion);
+        signal(condBExclusion);
+        signal(condFull);
+    } else {
+        acHaveRead = true;
+        signal(condAChaveRead);
+        while (size <= MYQUEUE_MIN_SIZE) {
+            wait(condEmpty);
+        }
+#if LOG
+        printf("\t AC read\n");
+#endif
+
+        data = takeFirst();
+
+        readyToPop = true;
+        signal(condReadyToPop);
     }
 
     leave();
@@ -60,79 +71,86 @@ Data MyQueue::readAsAorC() {
 }
 
 Data MyQueue::readAsB() {
+    enter();
     Data data;
-    condBExclusion.p();
-    mutex.p();
-    if (condAChaveRead.getValue() == 0) {
-        // B is first reader
-        condBhaveRead.v();
-        mutex.v();
-        condEmpty.p();
-        mutex.p();
 
-        data = takeFirst();
-        printf("\t Bread\n");
-        condReadyToPop.v();
-        mutex.v();
-    } else {
-        // A or C have read
-        condAChaveRead.p(); // consumption
-        mutex.v();
-        condReadyToPop.p();
-        mutex.p();
+    while (bIsConsuming) {
+        wait(condBExclusion);
+    }
+    bIsConsuming = true;
 
-        printf("\t Bpoped\n");
+    if (acHaveRead) {
+        acHaveRead = false; // consumtion
+        while (!readyToPop) {
+            wait(condReadyToPop);
+        }
+        readyToPop = false;
+#if LOG
+        printf("=== B poped\n");
+#endif
+
         data = pop();
 
-        condBExclusion.v();
-        condACExclusion.v();
-        condFull.v();
-        mutex.v();
-        //condWaitingForEmpty.v();
+        bIsConsuming = false;
+        acIsConsuming = false;
+        signal(condBExclusion);
+        signal(condACExclusion);
+        signal(condFull);
+    } else {
+        // B is first reader
+        bHaveRead = true;
+        signal(condBhaveRead);
+        while (size <= MYQUEUE_MIN_SIZE) {
+            wait(condEmpty);
+        }
+
+        data = takeFirst();
+#if LOG
+        printf("\t B read\n");
+#endif
+
+        readyToPop = true;
+        signal(condReadyToPop);
     }
 
 
 #if LOG
-    printfMutex.p();
     printf("B: %d\n", data.val);
-    printfMutex.v();
 #endif
-    condReadStats.p();
     ++bReads;
-    condReadStats.v();
 
+    leave();
     return data;
 }
 
 Data MyQueue::readAsC() {
     Data data = readAsAorC();
+    enter();
 #if LOG
-    printfMutex.p();
     printf(" C: %d\n", data.val);
-    printfMutex.v();
 #endif
-    condReadStats.p();
     ++cReads;
-    condReadStats.v();
+    leave();
 
     return data;
 }
 
 void MyQueue::write(const Data &data) {
-    condFull.p();
-    mutex.p();
+    enter();
+
+    while (size == MYQUEUE_MAX_SIZE) {
+        wait(condFull);
+    }
 
     push(data);
     if (size > MYQUEUE_MIN_SIZE) {
-        condEmpty.v();
+        signal(condEmpty);
     }
 
-    mutex.v();
 #if LOG
-    printfMutex.p();
     printf("  Writer: %d\n", data.val);
-    printfMutex.v();
 #endif
+    leave();
 }
 
 Data MyQueue::takeFirst() {
@@ -153,9 +171,7 @@ void MyQueue::push(const Data &data) {
 }
 
 void MyQueue::printReadStats() {
-    printfMutex.p();
-    condReadStats.p();
+    enter();
     printf("  A: %d, B: %d, C: %d\n", aReads, bReads, cReads);
-    condReadStats.v();
-    printfMutex.v();
+    leave();
 }

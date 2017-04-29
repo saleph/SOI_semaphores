@@ -4,6 +4,9 @@ Monitor::Monitor()
     : sem(1)
 { }
 
+Monitor::~Monitor()
+{ }
+
 void Monitor::enter() {
     sem.p();
 }

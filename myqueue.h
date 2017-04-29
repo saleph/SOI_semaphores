@@ -8,9 +8,8 @@
 
 #define MYQUEUE_MAX_SIZE 4
 #define MYQUEUE_MIN_SIZE 3
-#define MYQUEUE_SIZE     0
 
-#define LOG 1
+#define LOG 0
 
 
 typedef struct Data {
@@ -22,11 +21,22 @@ class MyQueue : Monitor
     struct Data queue[MYQUEUE_MAX_SIZE];
     int size;
     ConditionVariable condBhaveRead, condAChaveRead, condFull, condEmpty, mutex, condBExclusion, condACExclusion, condWaitingForEmpty, condReadyToPop;
+    bool bHaveRead, acHaveRead, bIsConsuming, acIsConsuming, readyToPop;
+
     Sem printfMutex, condReadStats;
     int aReads, bReads, cReads;
+
+
+    class Guard {
+        ConditionVariable &condition;
+    public:
+        Guard(ConditionVariable &c)
+            : condition(c) {
+        }
+    };
 public:
     MyQueue();
-    ~MyQueue();
+    virtual ~MyQueue();
 
     Data readAsA();
     Data readAsB();
@@ -40,5 +50,6 @@ private:
     void push(const Data &data);
     Data readAsAorC();
 };
+
 
 #endif // MYQUEUE_H

@@ -12,6 +12,7 @@ class Monitor
     Sem sem;
 public:
     Monitor();
+    virtual ~Monitor();
 
     void enter();
     void leave();

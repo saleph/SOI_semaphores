@@ -13,8 +13,9 @@
 #include "myqueue.h"
 #include "sharedmemory.h"
 
-#define CYCLES 25
+#define CYCLES 100000
 #define LOG_PERIOD 2000
+#define RAND_MOD 25
 
 MyQueue queue;
 
@@ -22,7 +23,7 @@ void *performReaderA(void*) {
     int i = CYCLES;
     while(--i) {
         queue.readAsA();
-        usleep(rand() % 300);
+        usleep(rand() % RAND_MOD);
     }
 }
 
@@ -30,7 +31,7 @@ void *performReaderB(void*) {
     int i = CYCLES;
     while(--i) {
         queue.readAsB();
-        usleep(rand() % 300);
+        usleep(rand() % RAND_MOD);
     }
 }
 
@@ -38,7 +39,7 @@ void *performReaderC(void*) {
     int i = CYCLES;
     while(--i) {
         queue.readAsC();
-        usleep(rand() % 300);
+        usleep(rand() % RAND_MOD);
     }
 }
 
@@ -48,8 +49,13 @@ void *performWriter(void*) {
     while(--i) {
         d.val = i;
         queue.write(d);
-        usleep(rand() % 300);
+        if (i % LOG_PERIOD == 0) {
+            queue.printReadStats();
+        }
+        usleep(rand() % RAND_MOD);
     }
+    while(getchar() != 'q');
+    queue.printReadStats();
 }
 
 int main ()
