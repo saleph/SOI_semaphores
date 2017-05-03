@@ -1,7 +1,7 @@
 #include "myqueue.h"
 
 MyQueue::MyQueue()
-    : size(0), printfMutex(1), condReadStats(1), lastReader(NoReader)
+    : size(0), printfMutex(1), condReadStats(1)
 {
 }
 
@@ -11,18 +11,17 @@ MyQueue::~MyQueue() {
 
 Data MyQueue::readAsA() {
     Data data = readAsAorC();
-    enter();
+    Guard g(this);
 #if LOG
     printf(" A: %d\n", data.val);
 #endif
     ++aReads;
-    leave();
 
     return data;
 }
 
 Data MyQueue::readAsAorC() {
-    enter();
+    Guard g(this);
     Data data;
 
     while (acIsConsuming) {
@@ -36,10 +35,6 @@ Data MyQueue::readAsAorC() {
             wait(condReadyToPop);
         }
         readyToPop = false;
-
-#if LOG
-
-#endif
 #if LOG
         printf("==== AC poped\n");
 #endif
@@ -66,12 +61,11 @@ Data MyQueue::readAsAorC() {
         signal(condReadyToPop);
     }
 
-    leave();
     return data;
 }
 
 Data MyQueue::readAsB() {
-    enter();
+    Guard g(this);
     Data data;
 
     while (bIsConsuming) {
@@ -119,24 +113,22 @@ Data MyQueue::readAsB() {
 #endif
     ++bReads;
 
-    leave();
     return data;
 }
 
 Data MyQueue::readAsC() {
     Data data = readAsAorC();
-    enter();
+    Guard g(this);
 #if LOG
     printf(" C: %d\n", data.val);
 #endif
     ++cReads;
-    leave();
 
     return data;
 }
 
 void MyQueue::write(const Data &data) {
-    enter();
+    Guard g(this);
 
     while (size == MYQUEUE_MAX_SIZE) {
         wait(condFull);
@@ -150,7 +142,6 @@ void MyQueue::write(const Data &data) {
 #if LOG
     printf("  Writer: %d\n", data.val);
 #endif
-    leave();
 }
 
 Data MyQueue::takeFirst() {
@@ -171,7 +162,6 @@ void MyQueue::push(const Data &data) {
 }
 
 void MyQueue::printReadStats() {
-    enter();
+    Guard g(this);
     printf("  A: %d, B: %d, C: %d\n", aReads, bReads, cReads);
-    leave();
 }

@@ -26,14 +26,6 @@ class MyQueue : Monitor
     Sem printfMutex, condReadStats;
     int aReads, bReads, cReads;
 
-
-    class Guard {
-        ConditionVariable &condition;
-    public:
-        Guard(ConditionVariable &c)
-            : condition(c) {
-        }
-    };
 public:
     MyQueue();
     virtual ~MyQueue();
